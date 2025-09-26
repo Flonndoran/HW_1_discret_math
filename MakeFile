@@ -1,0 +1,44 @@
+CC=gcc
+CFLAGS = -Wall -Werror -Wextra -std=c11
+GCOVFLAGS = -fprofile-arcs -ftest-coverage
+
+SRC = src/pairs.c
+OBJ = $(SRC:.c=.o)
+
+TEST_SRC = test.c
+TEST_BIN = test/run
+
+LIB = libpairs.a
+
+all: $(LIB) test
+
+lib: $(LIB)
+
+$(LIB): $(OBJ)
+	ar rcs $@ $^
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@ -Iinclude
+
+
+test: $(LIB) $(TEST_SRC)
+	$(CC) $(CFLAGS) $(TEST_SRC) $(LIB) -o $(TEST_BIN)
+	./$(TEST_BIN)
+
+gcov_report: CFLAGS += $(GCOVFLAGS)
+gcov_report: clean $(SRC) $(TEST_SRC)
+	$(CC) $(CFLAGS) $(SRC) $(TEST_SRC) -Iinclude -o $(TEST_BIN)
+	./$(TEST_BIN)
+	lcov -t "pairs" -o coverage.info -c -d .
+	lcov --remove coverage.info "*/test/*" -o coverage.info
+	genhtml -o report coverage.info
+
+leaks: test
+	leaks --atExit -- ./$(TEST_BIN)
+
+clean:
+	rm -f *.o *.a *.gcno *.gcda *.gcov coverage.info
+	rm -f $(TEST_BIN) test/*.o test/*.gcno test/*.gcda test/*.gcov
+	rm -rf report
+
+.PHONY: all lib clean test gcov_report leaks
